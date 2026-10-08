@@ -39,6 +39,32 @@ test("max capability excludes only known unsupported Claude effort families", ()
   assert.equal(supportsClaudeMaxEffort("gpt-5.5"), false);
 });
 
+test("the Sonnet 4.x line is withheld from max while Opus 4.6/4.8 stay eligible", () => {
+  // Operator-verified: Sonnet 4.5 / 4.6 top out below max in Claude Code. The registry
+  // marks every Claude model supportsThinking, so the family gate is the only guard.
+  assert.equal(supportsClaudeMaxEffort("claude-sonnet-4-5"), false);
+  assert.equal(supportsClaudeMaxEffort("claude-sonnet-4-5-20250929"), false);
+  assert.equal(supportsClaudeMaxEffort("claude-sonnet-4-6"), false);
+  assert.equal(supportsClaudeMaxEffort("cc/claude-sonnet-4-6"), false);
+  // Opus 4.6/4.8 are a different family and keep max.
+  assert.equal(supportsClaudeMaxEffort("claude-opus-4-6"), true);
+  assert.equal(supportsClaudeMaxEffort("claude-opus-4-8"), true);
+  assert.equal(supportsClaudeMaxEffort("claude-sonnet-5"), true);
+});
+
+test("Sonnet 4.x keeps its pre-existing low/medium/high ladder without max", () => {
+  for (const id of ["claude-sonnet-4-5-20250929", "claude-sonnet-4-6"]) {
+    const levels = claudeEffortLevelsFor("claude", id);
+    assert.equal(levels.includes(CLAUDE_MAX_EFFORT_LEVEL), false, id);
+    assert.deepEqual(levels.slice(0, 3), ["low", "medium", "high"], id);
+  }
+
+  const variants = appendClaudeEffortVariants([model("claude/claude-sonnet-4-6")]);
+  const ids = new Set(variants.map(({ id }) => id));
+  assert.equal(ids.has("claude/claude-sonnet-4-6-max"), false);
+  assert.equal(ids.has("claude/claude-sonnet-4-6-high"), true);
+});
+
 test("effort levels include max once only when the model supports it", () => {
   assert.deepEqual(claudeEffortLevelsFor("claude", "claude-fable-5"), [
     "low",

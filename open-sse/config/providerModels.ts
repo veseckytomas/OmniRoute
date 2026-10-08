@@ -340,6 +340,9 @@ const CLAUDE_MAX_EFFORT_UNSUPPORTED_FAMILY_PATTERNS = [
   /(?:^|[\/._-])haiku(?:[._-]|$)/,
   // Opus 4.5 supports low/medium/high only. The family boundary keeps 4.50 eligible.
   /(?:^|[\/._-])claude-opus-4-5(?:[._-]|$)/,
+  // The Sonnet 4.x line (4.5 / 4.6) tops out below max — operator-verified against
+  // Claude Code. Opus 4.6/4.8 are NOT in this family and stay max-eligible.
+  /(?:^|[\/._-])claude-sonnet-4(?:[._-]|$)/,
   // Sonnet 5.5 is deliberately eligible: operator verification in #15035 confirmed max support.
 ] as const;
 const ANTHROPIC_COMPATIBLE_PREFIX = "anthropic-compatible-";
