@@ -128,9 +128,12 @@ export const claudeProvider: RegistryEntry = {
       contextLength: 1000000,
       maxOutputTokens: 128000,
       supportsXHighEffort: true,
-      // Sonnet 5.5 caps effort at xhigh. Listing the tiers here makes the
-      // executor lower a requested "max" to "xhigh" instead of forwarding it.
-      supportedThinkingEfforts: ["low", "medium", "high", "xhigh"],
+      // Sonnet 5.5 accepts "max" (operator-verified against Claude Code). The
+      // earlier "caps at xhigh" tier list is deliberately gone: it made the
+      // executor silently lower a requested "max" to "xhigh" (see
+      // executors/base/reasoningEffort.ts) instead of forwarding it, which
+      // contradicted the `-max` catalog variant advertised for this model.
+      supportedThinkingEfforts: ["low", "medium", "high", "xhigh", "max"],
       unsupportedParams: ["temperature", "top_p", "top_k"],
     },
     {

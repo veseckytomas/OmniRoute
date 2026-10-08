@@ -7,6 +7,7 @@ import {
   getModelsByProviderId,
   supportsClaudeMaxEffort,
 } from "../../open-sse/config/providerModels.ts";
+import { getRegistryModelThinkingEfforts } from "../../open-sse/config/providerRegistry.ts";
 import { modelSupportsContext1mBeta } from "../../open-sse/config/context1m.ts";
 import { getNextFamilyFallback } from "../../open-sse/services/modelFamilyFallback.ts";
 import { getDefaultPricing } from "../../src/shared/constants/pricing.ts";
@@ -74,6 +75,16 @@ test("Claude Sonnet 5.5 supports max effort", () => {
   assert.equal(supportsClaudeMaxEffort("claude/claude-sonnet-5-5"), true);
   assert.equal(supportsClaudeMaxEffort("claude-sonnet-5"), true);
   assert.equal(supportsClaudeMaxEffort("claude-opus-4-5"), false);
+
+  // The capability flag alone is not enough: a stale `supportedThinkingEfforts`
+  // tier list makes the executor silently LOWER a requested "max" to the nearest
+  // listed tier instead of forwarding it, so the `-max` catalog variant would be
+  // advertised but never actually applied. Pin the tier list as the second half
+  // of the contract.
+  assert.ok(
+    getRegistryModelThinkingEfforts("claude", MODEL_ID)?.includes("max"),
+    "claude-sonnet-5-5 must list max in supportedThinkingEfforts, or the executor downgrades it"
+  );
 });
 
 test("Claude Sonnet 5.5 is priced at the published rate", () => {
@@ -96,7 +107,10 @@ test("Claude Sonnet 5.5 is registered on the first-party providers", () => {
     assert.ok(ids.has(MODEL_ID), `${providerId} must expose ${MODEL_ID}`);
   }
   const claude = getModelsByProviderId("claude").find((entry) => entry.id === MODEL_ID);
-  assert.deepEqual(claude?.supportedThinkingEfforts, ["low", "medium", "high", "xhigh"]);
+  // "max" is listed deliberately — see the max-effort test above: without it the
+  // executor lowers a requested "max" to "xhigh" and the advertised `-max`
+  // catalog variant for this model would never reach upstream.
+  assert.deepEqual(claude?.supportedThinkingEfforts, ["low", "medium", "high", "xhigh", "max"]);
   assert.equal(modelSupportsContext1mBeta(MODEL_ID), true);
   assert.equal(getNextFamilyFallback(`claude/${MODEL_ID}`, new Set()), "claude/claude-sonnet-5");
 });
