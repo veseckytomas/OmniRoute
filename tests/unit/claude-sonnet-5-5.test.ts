@@ -66,10 +66,14 @@ test("Claude Sonnet 5 still accepts disabled thinking", () => {
   assert.deepEqual(kept.thinking, { type: "disabled" });
 });
 
-test("Claude Sonnet 5.5 caps effort at xhigh", () => {
-  assert.equal(supportsClaudeMaxEffort(MODEL_ID), false);
-  assert.equal(supportsClaudeMaxEffort("claude/claude-sonnet-5-5"), false);
+test("Claude Sonnet 5.5 supports max effort", () => {
+  // The earlier "caps at xhigh" exclusion was removed deliberately: operator
+  // verification in #15035 confirmed Sonnet 5.5 accepts max upstream. Only Haiku
+  // and Opus 4.5 remain excluded from max.
+  assert.equal(supportsClaudeMaxEffort(MODEL_ID), true);
+  assert.equal(supportsClaudeMaxEffort("claude/claude-sonnet-5-5"), true);
   assert.equal(supportsClaudeMaxEffort("claude-sonnet-5"), true);
+  assert.equal(supportsClaudeMaxEffort("claude-opus-4-5"), false);
 });
 
 test("Claude Sonnet 5.5 is priced at the published rate", () => {

@@ -88,21 +88,29 @@ test("isKnownClaudeEffortBaseModel returns false for a non-Claude model that als
 
 // ── claudeEffortLevelsFor ────────────────────────────────────────────────────
 
-test("xHigh is added only for models that support it", () => {
+test("xHigh and max are added only for models that support them", () => {
   assert.deepEqual(claudeEffortLevelsFor("claude", "claude-fable-5"), [
     "low",
     "medium",
     "high",
     "xhigh",
+    "max",
   ]);
   assert.deepEqual(claudeEffortLevelsFor("claude", "claude-opus-4-8"), [
     "low",
     "medium",
     "high",
     "xhigh",
+    "max",
   ]);
-  // Opus 4.6 and Haiku 4.5 are flagged supportsXHighEffort:false in the registry.
-  assert.deepEqual(claudeEffortLevelsFor("claude", "claude-opus-4-6"), ["low", "medium", "high"]);
+  // Opus 4.6 is flagged supportsXHighEffort:false in the registry but still takes max.
+  assert.deepEqual(claudeEffortLevelsFor("claude", "claude-opus-4-6"), [
+    "low",
+    "medium",
+    "high",
+    "max",
+  ]);
+  // Haiku is excluded from max entirely (supportsClaudeMaxEffort), and from xhigh.
   assert.deepEqual(claudeEffortLevelsFor("claude", "claude-haiku-4-5-20251001"), [
     "low",
     "medium",
@@ -122,6 +130,7 @@ test("appends effort variant ids + names for eligible models only", () => {
     "claude/claude-fable-5-medium",
     "claude/claude-fable-5-high",
     "claude/claude-fable-5-xhigh",
+    "claude/claude-fable-5-max",
   ]);
   const high = out.find((m) => m.id === "claude/claude-fable-5-high");
   assert.equal(high?.name, "claude-fable-5 (High)");
@@ -131,12 +140,13 @@ test("appends effort variant ids + names for eligible models only", () => {
 
 test("normalizes the provider prefix (cc → claude) when a canonical map is given", () => {
   const out = appendClaudeEffortVariants([mk("cc/claude-fable-5")], { cc: "claude" });
-  const variantIds = out.map((m) => m.id).filter((id) => /-(low|medium|high|xhigh)$/.test(id));
+  const variantIds = out.map((m) => m.id).filter((id) => /-(low|medium|high|xhigh|max)$/.test(id));
   assert.deepEqual(variantIds, [
     "claude/claude-fable-5-low",
     "claude/claude-fable-5-medium",
     "claude/claude-fable-5-high",
     "claude/claude-fable-5-xhigh",
+    "claude/claude-fable-5-max",
   ]);
 });
 
@@ -153,13 +163,13 @@ test("never generates variants-of-variants when the list already contains effort
   const again = appendClaudeEffortVariants(withVariants);
   const doubleSuffixed = again
     .map((m) => m.id)
-    .filter((id) => /-(low|medium|high|xhigh)-(low|medium|high|xhigh)$/.test(id));
+    .filter((id) => /-(low|medium|high|xhigh|max)-(low|medium|high|xhigh|max)$/.test(id));
   assert.deepEqual(doubleSuffixed, []);
 });
 
 // ── cross-module drift guard: CLAUDE_EFFORT_SUFFIX_RE parity ────────────────
 //
-// `CLAUDE_EFFORT_SUFFIX_RE` (`/-(?:xhigh|high|medium|low)$/i`) is intentionally
+// `CLAUDE_EFFORT_SUFFIX_RE` (`/-(?:max|xhigh|high|medium|low)$/i`) is intentionally
 // duplicated as a local, non-exported constant in THREE sibling modules: this
 // file's module (claudeEffortVariants.ts), noThinkingAlias.ts, and
 // ccDiscoveryAliases.ts. A cross-import consolidation of that constant was
@@ -178,10 +188,10 @@ test("CLAUDE_EFFORT_SUFFIX_RE stays in sync across claudeEffortVariants/noThinki
   // gate identically, so any behavioral difference below is attributable only
   // to the effort-suffix regex, not to some other per-module gating rule.
   const BASE = "claude-opus-4-5";
-  const EFFORT_SUFFIXES = ["-low", "-medium", "-high", "-xhigh", "-XHIGH"];
+  const EFFORT_SUFFIXES = ["-low", "-medium", "-high", "-xhigh", "-XHIGH", "-max"];
   // Trailing tokens that look suffix-like but must NOT match the regex
-  // (anchored to exactly low/medium/high/xhigh at end-of-string).
-  const NON_MATCHING_SUFFIXES = ["-max", "-highest"];
+  // (anchored to exactly low/medium/high/xhigh/max at end-of-string).
+  const NON_MATCHING_SUFFIXES = ["-highest"];
 
   for (const suffix of EFFORT_SUFFIXES) {
     const qualifiedId = `claude/${BASE}${suffix}`;

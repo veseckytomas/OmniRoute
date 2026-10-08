@@ -22,8 +22,8 @@
  *  - ids that already start with `claude` or `anthropic` (with or without a
  *    following `/`, case-insensitive) — would double-prefix or shadow the base id.
  *  - `no-think/…` aliases and reasoning-effort variants (`-low`/`-medium`/`-high`/
- *    `-xhigh` suffix) — v1 only mirrors base ids; effort/no-think discovery is a
- *    separate concern.
+ *    `-xhigh`/`-max` suffix) — v1 only mirrors base ids; effort/no-think discovery
+ *    is a separate concern.
  *  - entries the caller's `isEnabled` predicate rejects.
  */
 
@@ -33,7 +33,7 @@ export const CC_DISCOVERY_COMBO_PREFIX = "claude/combo/";
 // Ids that already live under the claude/anthropic namespace — never re-mirror them.
 const ALREADY_CLAUDE_RE = /^(?:claude|anthropic)(?:\/|$)/i;
 // Ids that already carry a reasoning-effort suffix — v1 only mirrors base ids.
-const CLAUDE_EFFORT_SUFFIX_RE = /-(?:xhigh|high|medium|low)$/i;
+const CLAUDE_EFFORT_SUFFIX_RE = /-(?:max|xhigh|high|medium|low)$/i;
 const NO_THINKING_PREFIX = "no-think/";
 
 interface CcDiscoveryCatalogEntry {

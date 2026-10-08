@@ -338,8 +338,9 @@ export function getModelTimeoutMs(aliasOrId: string, modelId: string): number | 
 const CLAUDE_MODEL_PATTERN = /(?:^|[\/._-])claude(?:[._-]|$)/;
 const CLAUDE_MAX_EFFORT_UNSUPPORTED_FAMILY_PATTERNS = [
   /(?:^|[\/._-])haiku(?:[._-]|$)/,
-  // Sonnet 5.5 caps effort at xhigh; max returns a 400.
-  /(?:^|[\/._-])claude-sonnet-5-5(?:[._-]|$)/,
+  // Opus 4.5 supports low/medium/high only. The family boundary keeps 4.50 eligible.
+  /(?:^|[\/._-])claude-opus-4-5(?:[._-]|$)/,
+  // Sonnet 5.5 is deliberately eligible: operator verification in #15035 confirmed max support.
 ] as const;
 const ANTHROPIC_COMPATIBLE_PREFIX = "anthropic-compatible-";
 

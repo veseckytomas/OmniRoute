@@ -31,7 +31,7 @@
  */
 import { getModelSpec } from "@/shared/constants/modelSpecs";
 import { extendCodexGpt56EffortValues } from "@/shared/reasoning/effortStandardization";
-import { supportsXHighEffort } from "../config/providerModels.ts";
+import { supportsClaudeMaxEffort, supportsXHighEffort } from "../config/providerModels.ts";
 import { isAntigravityClaudeTierFamilyBase } from "./antigravityLiteralModelIds.ts";
 import { isDevinLiteralModelIdProvider } from "./devinLiteralModelIds.ts";
 
@@ -39,17 +39,20 @@ import { isDevinLiteralModelIdProvider } from "./devinLiteralModelIds.ts";
 export const CLAUDE_EFFORT_VARIANT_LEVELS = ["low", "medium", "high"] as const;
 /** Extra level advertised only for models that support extra-high effort. */
 export const CLAUDE_XHIGH_EFFORT_LEVEL = "xhigh";
+/** Top level advertised only for models that support max effort. */
+export const CLAUDE_MAX_EFFORT_LEVEL = "max";
 
 export type ClaudeEffortVariantLevel =
-  (typeof CLAUDE_EFFORT_VARIANT_LEVELS)[number] | typeof CLAUDE_XHIGH_EFFORT_LEVEL;
+  | (typeof CLAUDE_EFFORT_VARIANT_LEVELS)[number]
+  | typeof CLAUDE_XHIGH_EFFORT_LEVEL
+  | typeof CLAUDE_MAX_EFFORT_LEVEL;
 
 // Ids that already carry a reasoning-effort suffix — never double-suffix them.
 // Kept byte-identical to the sibling copies in noThinkingAlias.ts and
-// ccDiscoveryAliases.ts (drift guard: tests/unit/claude-effort-variants.test.ts)
-// — do NOT add "max" here. Kiro's synthesized "-max" variant (below) is guarded
-// separately by KIRO_OPUS_5_MAX_VARIANT_RE, scoped to that one id, so the shared
-// pattern stays exactly what upstream expects for every other Claude model.
-const CLAUDE_EFFORT_SUFFIX_RE = /-(?:xhigh|high|medium|low)$/i;
+// ccDiscoveryAliases.ts (drift guard: tests/unit/claude-effort-variants.test.ts).
+// "max" is part of the shared pattern now that the catalog synthesizes `-max`
+// for every max-capable Claude model, not just Kiro's Opus 5.
+const CLAUDE_EFFORT_SUFFIX_RE = /-(?:max|xhigh|high|medium|low)$/i;
 // Kiro's provider-native Opus 5 Max tier, synthesized below as "<base>-max".
 // Excluded separately (not via CLAUDE_EFFORT_SUFFIX_RE) so a second catalog
 // pass never re-synthesizes low/medium/high/xhigh/max on top of it.
@@ -145,14 +148,19 @@ function normalizeProviderPrefix(
 
 /**
  * Effort levels to advertise for `<providerId>/<modelId>`. Low/Medium/High always;
- * xHigh only when the model supports it (single source of truth `supportsXHighEffort`).
+ * xHigh only when the model supports it (single source of truth `supportsXHighEffort`);
+ * Max only when the model supports it (`supportsClaudeMaxEffort`). Provider-native
+ * extensions still run last, so the result is de-duplicated before returning.
  */
 export function claudeEffortLevelsFor(providerId: string, modelId: string): string[] {
   const levels: string[] = [...CLAUDE_EFFORT_VARIANT_LEVELS];
   if (supportsXHighEffort(providerId, modelId)) {
     levels.push(CLAUDE_XHIGH_EFFORT_LEVEL);
   }
-  return extendCodexGpt56EffortValues(providerId, modelId, levels);
+  if (supportsClaudeMaxEffort(modelId)) {
+    levels.push(CLAUDE_MAX_EFFORT_LEVEL);
+  }
+  return [...new Set(extendCodexGpt56EffortValues(providerId, modelId, levels))];
 }
 
 /**
