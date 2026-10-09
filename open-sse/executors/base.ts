@@ -1,5 +1,6 @@
 import { HTTP_STATUS, FETCH_TIMEOUT_MS } from "../config/constants.ts";
 import { getApiKeyCodexServiceTier } from "../../src/lib/providers/codexApiKeyServiceMode";
+import { getDefaultOutputEffort } from "../../src/shared/constants/modelSpecs";
 import { resolveProviderUserAgentOverride } from "./providerUserAgentOverride.ts";
 import { getRegistryEntry, requireCompatibleBaseUrl } from "../config/providerRegistry.ts";
 import { resolveFetchStartTimeout } from "../utils/fetchStartTimeoutPolicy.ts";
@@ -1127,7 +1128,11 @@ export class BaseExecutor {
               tb.context_management = {
                 edits: [{ type: "clear_thinking_20251015", keep: "all" }],
               };
-              tb.output_config = { effort: "high" };
+              // Per-model default effort, mirroring the shipped Claude Code CLI
+              // `default_effort` catalog (falls back to "high" when unknown).
+              tb.output_config = {
+                effort: getDefaultOutputEffort(typeof tb.model === "string" ? tb.model : null),
+              };
             }
             // #5312: Opus 4.7/4.8 accept only thinking.type="adaptive" ("enabled" → 400).
             // When an operator budget (custom/adaptive mode) produced an enabled block

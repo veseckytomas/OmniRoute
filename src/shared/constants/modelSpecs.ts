@@ -59,6 +59,20 @@ export interface ModelSpec {
   // priority #3 and the wiring's modelDefaultAuto branch were unreachable
   // except by a test constructing the body literal directly.
   defaultReasoningEffort?: "none" | "low" | "medium" | "high" | "auto";
+  // Per-model default for the Anthropic `output_config.effort` the gateway injects on the
+  // default Claude Code path (open-sse/executors/base.ts) when the client sent neither a
+  // `thinking` block nor an `output_config`. This mirrors the shipped Claude Code CLI, whose
+  // resolver reads a per-model `default_effort` from its model catalog and only falls back to
+  // "high" when the model declares none — OmniRoute previously hardcoded "high" for every
+  // model, which over-spends on models the CLI defaults to "medium" and under-drives
+  // Opus 4.7 (CLI default "xhigh"). Read through getDefaultOutputEffort(), which resolves
+  // dated/Bedrock aliases via getModelSpec and falls back to "high" for unlisted models.
+  //
+  // This is NOT defaultReasoningEffort: that field is the OpenAI-format `reasoning_effort`
+  // injected at the chatCore chokepoint (#6879) and its union has no xhigh/max, so reusing it
+  // would leak an Anthropic-only level into OpenAI dispatches. Different wire field,
+  // different value space, different injection point — keep them separate.
+  defaultOutputEffort?: "low" | "medium" | "high" | "xhigh" | "max";
 }
 
 const BEDROCK_CLAUDE_ALIASES = (...modelIds: string[]) => [
@@ -446,6 +460,9 @@ export const MODEL_SPECS: Record<string, ModelSpec> = {
     adaptiveThinkingOnly: true,
     rejectsThinkingDisabled: true,
     rejectsForcedToolChoice: true,
+    // Claude Code ships default_effort:"medium" for this model (not the
+    // generic "high" fallback) — see defaultOutputEffort on ModelSpec.
+    defaultOutputEffort: "medium",
     aliases: BEDROCK_CLAUDE_ALIASES("claude-sonnet-5-5"),
   },
 
@@ -479,6 +496,9 @@ export const MODEL_SPECS: Record<string, ModelSpec> = {
     supportsTools: true,
     supportsVision: true,
     adaptiveThinkingOnly: true,
+    // Claude Code ships default_effort:"xhigh" for Opus 4.7 — the only model
+    // in the catalog that defaults above "high". See defaultOutputEffort.
+    defaultOutputEffort: "xhigh",
     aliases: BEDROCK_CLAUDE_ALIASES("claude-opus-4-7", "claude-opus-4.7"),
   },
 
@@ -526,6 +546,9 @@ export const MODEL_SPECS: Record<string, ModelSpec> = {
     adaptiveThinkingOnly: true,
     rejectsForcedToolChoice: true,
     defaultReasoningEffort: "medium",
+    // Claude Code ships default_effort:"medium" for this model (not the
+    // generic "high" fallback) — see defaultOutputEffort on ModelSpec.
+    defaultOutputEffort: "medium",
     aliases: BEDROCK_CLAUDE_ALIASES("claude-opus-5-5", "claude-opus-5.5"),
   },
 
@@ -1089,6 +1112,19 @@ export function getMaxEffortWhenThinkingDisabled(
 ): "high" | null {
   if (typeof modelId !== "string" || modelId.length === 0) return null;
   return getModelSpec(modelId)?.maxEffortWhenThinkingDisabled ?? null;
+}
+
+/**
+ * Per-model default for `output_config.effort` on the Claude Code default branch.
+ * Mirrors the shipped CLI resolver, which reads the model catalog's `default_effort`
+ * and falls back to `"high"` when the model declares none. Matches dated/Bedrock
+ * aliases via getModelSpec.
+ */
+export function getDefaultOutputEffort(
+  modelId: string | null | undefined
+): "low" | "medium" | "high" | "xhigh" | "max" {
+  if (typeof modelId !== "string" || modelId.length === 0) return "high";
+  return getModelSpec(modelId)?.defaultOutputEffort ?? "high";
 }
 
 export function capThinkingBudget(modelId: string, budget: number): number {
