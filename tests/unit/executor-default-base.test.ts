@@ -838,7 +838,8 @@ test("DefaultExecutor.execute only injects adaptive thinking defaults for Claude
   assert.deepEqual((requestBodies[0] as any).context_management, {
     edits: [{ type: "clear_thinking_20251015", keep: "all" }],
   });
-  assert.deepEqual((requestBodies[0] as any).output_config, { effort: "high" });
+  // claude-opus-4-7 carries default_effort "xhigh" in the shipped Claude Code CLI catalog.
+  assert.deepEqual((requestBodies[0] as any).output_config, { effort: "xhigh" });
 
   assert.equal((requestBodies[1] as any).thinking, undefined);
   assert.equal((requestBodies[1] as any).context_management, undefined);
