@@ -26,6 +26,7 @@ import { ComboCompressionModeSelect } from "@/shared/components/compression/Comb
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { FieldLabelWithHelp, WeightTotalBar } from "./parts";
 import { ComboTargetOptions } from "./ComboQuotaOnlyFallbackToggle";
+import { ComboTargetEffortSelect, setComboTargetEffort } from "./ComboTargetEffortSelect";
 import { applyQuotaOnlyFallbackConfig, setQuotaOnlyFallback } from "./comboQuotaOnlyFallback";
 import { buildAgentFeaturePatch } from "./comboAgentFeatures";
 import { useComboProxyAssignments } from "./useComboProxyAssignments";
@@ -3901,6 +3902,17 @@ function ComboFormModal({
                         }
                         hasPricing={hasPricingForModel(entry.model)}
                         translate={(key, fallback) => getI18nOrFallback(t, key, fallback)}
+                      />
+
+                      {/* Per-target reasoning effort pin (effort-capable models only) */}
+                      <ComboTargetEffortSelect
+                        entry={entry}
+                        index={index}
+                        builderProviders={builderProviders}
+                        translate={(key, fallback) => getI18nOrFallback(t, key, fallback)}
+                        onEffortChange={(stepIndex, effort) =>
+                          setModels(setComboTargetEffort(models, stepIndex, effort))
+                        }
                       />
 
                       {/* Weight input (weighted mode only) */}

@@ -6,6 +6,7 @@
  * — logic unchanged, re-exported from combo.ts for backward compatibility.
  */
 
+import type { ComboStepEffort } from "../../../src/lib/combos/steps.ts";
 import type { CompressionExclusions } from "../compression/exclusions.ts";
 import type { ProviderCandidate } from "../autoCombo/scoring.ts";
 import type { PerTargetAdmissionHook } from "../admission/types.ts";
@@ -239,6 +240,13 @@ export type ResolvedComboTarget = {
    * were pinned to one specific account.
    */
   pinnedFingerprint?: string;
+  /**
+   * Reasoning effort pinned on this step by the combo builder
+   * (`ComboModelStep.effort`, `src/lib/combos/steps.ts`). Absent = no pin, the
+   * caller's request / provider defaults decide. Applied to the per-target
+   * attempt body by `applyComboTargetEffortPin` in `./executeTargetAttempt.ts`.
+   */
+  effort?: ComboStepEffort;
 };
 
 export type ShadowRoutingConfig = {

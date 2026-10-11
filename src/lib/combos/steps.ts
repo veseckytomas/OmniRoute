@@ -9,6 +9,16 @@ type JsonRecord = Record<string, unknown>;
 
 export const COMBO_SCHEMA_VERSION = 2;
 
+/**
+ * Effort levels a combo model step may pin. This is the canonical effort
+ * vocabulary (`src/shared/reasoning/effortStandardization.ts`
+ * `CANONICAL_EFFORT_VALUES`) minus `"none"`: `"none"` means "do not reason",
+ * which is the absence of a pinned effort, not a pinnable level.
+ */
+export const COMBO_STEP_EFFORT_VALUES = ["low", "medium", "high", "xhigh", "max"] as const;
+
+export type ComboStepEffort = (typeof COMBO_STEP_EFFORT_VALUES)[number];
+
 export interface ComboModelStep {
   id: string;
   kind: "model";
@@ -25,6 +35,11 @@ export interface ComboModelStep {
   label?: string;
   prompt?: string | null;
   tags?: string[];
+  /**
+   * Optional reasoning effort pinned on this step (e.g. a Claude Code effort
+   * level). Absent = let the request / provider defaults decide.
+   */
+  effort?: ComboStepEffort;
   fallbackOnlyOnQuotaExhaustion?: boolean;
 }
 
@@ -73,6 +88,19 @@ function isRecord(value: unknown): value is JsonRecord {
 
 function toTrimmedString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+/**
+ * Coerce an untrusted `effort` into the pinnable union. Anything unrecognized
+ * (including `"none"`) collapses to `undefined` so a malformed target degrades
+ * to its defaults instead of failing the whole combo save.
+ */
+function toComboStepEffort(value: unknown): ComboStepEffort | undefined {
+  if (typeof value !== "string") return undefined;
+  const lowered = value.trim().toLowerCase();
+  return (COMBO_STEP_EFFORT_VALUES as readonly string[]).includes(lowered)
+    ? (lowered as ComboStepEffort)
+    : undefined;
 }
 
 function toWeight(value: unknown): number {
@@ -428,6 +456,7 @@ export function normalizeComboStep(
         .map((connId) => toTrimmedString(connId))
         .filter((connId): connId is string => !!connId)
     : undefined;
+  const effort = toComboStepEffort(value.effort);
 
   return {
     id:
@@ -441,6 +470,7 @@ export function normalizeComboStep(
     ...(label ? { label } : {}),
     ...(prompt ? { prompt } : {}),
     ...(tags && tags.length > 0 ? { tags } : {}),
+    ...(effort ? { effort } : {}),
     ...(allowedConnectionIds && allowedConnectionIds.length > 0 ? { allowedConnectionIds } : {}),
     ...(fallbackOnlyOnQuotaExhaustion ? { fallbackOnlyOnQuotaExhaustion: true } : {}),
   };

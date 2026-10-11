@@ -155,6 +155,10 @@ function normalizeRuntimeStep(
     ...(step.kind === "model" && step.fallbackOnlyOnQuotaExhaustion
       ? { fallbackOnlyOnQuotaExhaustion: true }
       : {}),
+    // Per-target reasoning-effort pin. `normalizeComboStep` already validated it
+    // against the pinnable union, so an unknown/absent value arrives undefined
+    // and the key stays off the target entirely (no pin).
+    ...(step.kind === "model" && step.effort ? { effort: step.effort } : {}),
   } satisfies ResolvedComboTarget;
 }
 

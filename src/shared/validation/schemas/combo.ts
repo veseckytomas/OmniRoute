@@ -36,6 +36,12 @@ export const comboModelStepInputSchema = z.object({
   // step's input, and this `prompt` is injected as that step's system instruction.
   // Ignored by every other strategy, so it is fully backward-compatible.
   prompt: z.string().trim().min(1).max(20000).optional(),
+  // Optional reasoning effort pinned on this step (e.g. a Claude Code effort
+  // level). Canonical effort vocabulary minus "none" (which is the absence of a
+  // pinned effort, not a pinnable level). Keep in sync with
+  // COMBO_STEP_EFFORT_VALUES in src/lib/combos/steps.ts — pinned by
+  // tests/unit/combo-step-effort.test.ts.
+  effort: z.enum(["low", "medium", "high", "xhigh", "max"]).optional(),
   ...comboStepMetaSchema,
 });
 

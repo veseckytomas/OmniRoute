@@ -107,6 +107,52 @@ import { resolveComboDailyReset } from "./comboDailyResetClock.ts";
 import type { ProtectedPriorityStopCause } from "./protectedPriorityStopStatus.ts";
 import { isProviderProbeResponse } from "../../../src/shared/utils/providerProbeResult.ts";
 import { recordLocalCircuitRefusal } from "./localCircuitRefusal.ts";
+import { isRecord } from "./comboData.ts";
+import { isClaudeCodeCompatible } from "../provider.ts";
+import { PROVIDER_CLAUDE } from "../systemTransforms.ts";
+
+/**
+ * Apply a combo target's pinned reasoning effort to its attempt body.
+ *
+ * A pin is an operator decision made in the combo builder, so it has to beat
+ * both the caller's own effort and the per-model default the Claude executor
+ * stamps on. The executor only defaults when `output_config` is absent, and the
+ * `x-omniroute-effort` header only applies when `output_config.effort` is
+ * undefined — so the pin writes `output_config.effort` itself (creating the
+ * container when the caller sent none). That single structural write wins both
+ * precedence checks without the pin having to inspect client headers.
+ *
+ * `reasoning.effort` is rewritten in lockstep when the caller sent that
+ * container, so no stale lower tier survives into a later translation.
+ *
+ * Top-level `reasoning_effort` is deliberately *removed*: the native Claude
+ * passthrough lane forwards unknown top-level keys verbatim, and Anthropic has
+ * no `reasoning_effort` field — leaving it in leaks an OpenAI-shaped key into
+ * the upstream body.
+ *
+ * The pin only applies to Claude-wire targets (`claude` plus the Claude Code
+ * compatible providers). Anything else keeps its body byte-identical, as does
+ * an unpinned target, which gets the very same object back.
+ */
+export function applyComboTargetEffortPin<T extends Record<string, unknown>>(
+  body: T,
+  target: Pick<ResolvedComboTarget, "effort" | "modelStr"> | undefined
+): T {
+  const effort = target?.effort;
+  if (!effort) return body;
+
+  // `modelStr` is `provider/model`; the pin is a Claude-wire-only concept.
+  const provider = (target?.modelStr ?? "").split("/")[0];
+  if (provider !== PROVIDER_CLAUDE && !isClaudeCodeCompatible(provider)) return body;
+
+  const next: Record<string, unknown> = { ...body };
+  delete next.reasoning_effort;
+  const reasoning = next.reasoning;
+  if (isRecord(reasoning)) next.reasoning = { ...reasoning, effort };
+  const outputConfig = next.output_config;
+  next.output_config = isRecord(outputConfig) ? { ...outputConfig, effort } : { effort };
+  return next as T;
+}
 
 export async function executeTargetAttempt(opts: {
   index: number;
@@ -335,6 +381,9 @@ export async function executeTargetAttempt(opts: {
           : "",
       fingerprint: resolveTargetFingerprint(target) ?? "",
     });
+    // Per-target reasoning-effort pin from the combo builder. Applied last so it
+    // wins over anything the caller sent; a no-op for an unpinned target.
+    attemptBody = applyComboTargetEffortPin(attemptBody, target);
     // #10681: record dispatch once per target (retries keep the first decision).
     if (!state.dispatchedTargets.has(target.executionKey)) {
       state.dispatchedTargets.add(target.executionKey);

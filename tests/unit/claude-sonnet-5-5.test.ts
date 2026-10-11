@@ -66,9 +66,11 @@ test("Claude Sonnet 5 still accepts disabled thinking", () => {
   assert.deepEqual(kept.thinking, { type: "disabled" });
 });
 
-test("Claude Sonnet 5.5 caps effort at xhigh", () => {
-  assert.equal(supportsClaudeMaxEffort(MODEL_ID), false);
-  assert.equal(supportsClaudeMaxEffort("claude/claude-sonnet-5-5"), false);
+test("Claude Sonnet 5.5 supports the max effort tier", () => {
+  // Claude Code 2.1.289 lists claude-sonnet-5-5 with max_effort (and xhigh_effort),
+  // so max is a native tier, not something to cap at xhigh.
+  assert.equal(supportsClaudeMaxEffort(MODEL_ID), true);
+  assert.equal(supportsClaudeMaxEffort("claude/claude-sonnet-5-5"), true);
   assert.equal(supportsClaudeMaxEffort("claude-sonnet-5"), true);
 });
 
@@ -92,7 +94,7 @@ test("Claude Sonnet 5.5 is registered on the first-party providers", () => {
     assert.ok(ids.has(MODEL_ID), `${providerId} must expose ${MODEL_ID}`);
   }
   const claude = getModelsByProviderId("claude").find((entry) => entry.id === MODEL_ID);
-  assert.deepEqual(claude?.supportedThinkingEfforts, ["low", "medium", "high", "xhigh"]);
+  assert.deepEqual(claude?.supportedThinkingEfforts, ["low", "medium", "high", "xhigh", "max"]);
   assert.equal(modelSupportsContext1mBeta(MODEL_ID), true);
   assert.equal(getNextFamilyFallback(`claude/${MODEL_ID}`, new Set()), "claude/claude-sonnet-5");
 });
